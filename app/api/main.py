@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 
 from app.core.logging import app_logger
 from app.models import GetMessageRequestModel, GetMessageResponseModel, IncomingMessage, Prediction
-from random import random
+from app.api.classifier import predict_bot
 from uuid import uuid4
 
 app = FastAPI()
@@ -39,7 +39,7 @@ def predict(msg: IncomingMessage) -> Prediction:
     Returns a `Prediction` object.
     """
 
-    is_bot_probability = random()  # Simulate a probability for the sake of example
+    is_bot_probability = predict_bot(msg.text)
     prediction_id = uuid4()
 
     return Prediction(

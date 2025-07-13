@@ -29,12 +29,26 @@ if "messages" not in st.session_state:
     st.session_state["messages"] = [{"role": "assistant", "content": "Type something"}]
 
 for msg in st.session_state["messages"]:
-    st.chat_message(msg["role"]).write(msg["content"])
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
+        if msg["role"] == "user" and "prob" in msg:
+            st.markdown(f"**Bot probability:** {msg['prob']:.2%}")
 
 if message := st.chat_input():
-    user_msg = {"role": "user", "content": message}
+    # Send this message to the /predict endpoint
+    pred_resp = requests.post(
+        echo_bot_url + "/predict",
+        json={
+            "text": message,
+            "dialog_id": dialog_id,
+            "id": str(uuid4()),
+            "participant_index": 1,
+        },
+    ).json()
+    prob = pred_resp["is_bot_probability"]
+
+    user_msg = {"role": "user", "content": message, "prob": prob}
     st.session_state["messages"].append(user_msg)
-    st.chat_message("user").write(message)
 
     response = requests.post(
         echo_bot_url + "/get_message",
@@ -42,13 +56,8 @@ if message := st.chat_input():
             dialog_id=dialog_id, last_msg_text=message, last_message_id=uuid4()
         ).model_dump(),
     )
-
     json_response = response.json()
-
-    response = f"{json_response['new_msg_text']}"
-
-    assistant_msg = {"role": "assistant", "content": response}
+    assistant_msg = {"role": "assistant", "content": json_response['new_msg_text']}
     st.session_state["messages"].append(assistant_msg)
-    st.chat_message("assistant").write(response)
 
     st.rerun()
