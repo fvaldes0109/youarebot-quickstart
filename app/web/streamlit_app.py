@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from app.models import GetMessageRequestModel
-from app.api.llm import respond
 
 def send_to_predict(text: str, participant_index: int) -> float:
     pred_resp = requests.post(
@@ -52,7 +51,6 @@ with st.sidebar:
 
     dialog_id = st.text_input("Dialog id", key="dialog_id", disabled=True)
 
-    # Show chart in sidebar
     if st.session_state.metrics["accuracy"]:
         st.markdown("### 📊 Accuracy / Log-loss")
 
@@ -78,36 +76,40 @@ for msg in st.session_state["messages"]:
             st.markdown(f"**Bot probability:** {msg['prob']:.2%}")
 
 if message := st.chat_input():
-    # Send this message to the /predict endpoint
+
     prob = send_to_predict(message, participant_index=1)
 
-    # Dummy label: assume label is 0 for now (human). Replace with actual ground truth when available.
     true_label = 0
 
-    # Store ground truth and prediction
     st.session_state.y_true.append(true_label)
     st.session_state.y_pred.append(prob)
 
-    # Calculate metrics
     y_true_arr = np.array(st.session_state.y_true)
     y_pred_arr = np.array(st.session_state.y_pred)
 
     accuracy = np.mean((y_pred_arr >= 0.5) == y_true_arr)
     loss = log_loss(y_true_arr, y_pred_arr, labels=[0, 1])
 
-    # Store metrics
     st.session_state.metrics["accuracy"].append(accuracy)
     st.session_state.metrics["log_loss"].append(loss)
 
     user_msg = {"role": "user", "content": message, "prob": prob}
     st.session_state["messages"].append(user_msg)
 
-    bot_response = respond(message)
+    response = requests.post(
+        echo_bot_url + "/get_message",
+        json=GetMessageRequestModel(
+            dialog_id=dialog_id, last_msg_text=message, last_message_id=uuid4()
+        ).model_dump(),
+    )
 
-    # Send this message to the /predict endpoint
-    prob_bot = send_to_predict(bot_response, participant_index=0)
+    json_response = response.json()
 
-    assistant_msg = {"role": "assistant", "content": bot_response, "prob": prob_bot}
+    response = f"{json_response['new_msg_text']}"
+
+    prob_bot = send_to_predict(response, participant_index=0)
+
+    assistant_msg = {"role": "assistant", "content": response, "prob": prob_bot}
     st.session_state["messages"].append(assistant_msg)
 
     st.rerun()

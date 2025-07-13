@@ -5,6 +5,8 @@ from app.models import GetMessageRequestModel, GetMessageResponseModel, Incoming
 from app.api.classifier import predict_bot
 from uuid import uuid4
 
+from app.api.llm import respond
+
 app = FastAPI()
 
 
@@ -26,8 +28,11 @@ async def get_message(body: GetMessageRequestModel):
     app_logger.info(
         f"Received message dialog_id: {body.dialog_id}, last_msg_id: {body.last_message_id}"
     )
+
+    response = respond(body.last_msg_text)
+
     return GetMessageResponseModel(
-        new_msg_text=body.last_msg_text, dialog_id=body.dialog_id
+        new_msg_text=response, dialog_id=body.dialog_id
     )
 
 @app.post("/predict", response_model=Prediction)
