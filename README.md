@@ -1,36 +1,15 @@
-# Echo Bot
+This runs the 4 main services: mlflow, classifier, llm and orchestrator.
 
-A simple echo bot for the HumanOrBot project that replies to any received message with the same text.
-
-## Overview
-
-This service provides a FastAPI-based API endpoint that receives messages and echoes them back. It is designed to work with the HumanOrBot service, responding to each message with the same text.
-
-## Running the Service
-
-### On Linux/macOS
+llm requires an OPENROUTER_API_KEY to be set in the .env file.
 
 ```bash
-chmod +x run_all_linux.sh
-./run_all_linux.sh
+docker compose build && docker compose up -d
 ```
 
-### On Windows
+There are other two services: trainer, which is used to finetune a small classification model and register it to the mlflow service, and web, which is a simple streamlit app that allows to chat with the bot and test all the services integrated.
 
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\run_all_windows.ps1
-```
-
-#### These scripts will:
-1. Install Poetry (if needed)
-2. Install project dependencies
-3. Set up an SSH tunnel to the remote host
-4. Start the FastAPI application on port 6782
-
-## Development
-
-To run tests:
+For both of them install the requirements how you prefer. To run trainer just run the jupyter notebook lora.ipynb. To run the streamlit app:
 
 ```bash
-poetry run python -m unittest discover -v tests
+streamlit run streamlit_app.py
 ```
