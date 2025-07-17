@@ -1,14 +1,19 @@
 from fastapi import FastAPI, HTTPException
+import requests
+import dotenv
+import os
 
-from app.core.logging import app_logger
-from app.models import GetMessageRequestModel, GetMessageResponseModel, IncomingMessage, Prediction
-from app.api.classifier import predict_bot
+from models import GetMessageRequestModel, GetMessageResponseModel, IncomingMessage, Prediction
+
 from uuid import uuid4
 
-from app.api.llm import respond
+dotenv.load_dotenv()
 
 app = FastAPI()
 
+@app.get("/health")
+def health():
+    return {"status": "ok from api"}
 
 @app.post("/get_message", response_model=GetMessageResponseModel)
 async def get_message(body: GetMessageRequestModel):
@@ -25,14 +30,19 @@ async def get_message(body: GetMessageRequestModel):
                 new_msg_text (str): Ответ бота
                 dialog_id (str): ID диалога
     """
-    app_logger.info(
+    print(
         f"Received message dialog_id: {body.dialog_id}, last_msg_id: {body.last_message_id}"
     )
 
-    response = respond(body.last_msg_text)
+    response = requests.post(
+        os.getenv("LLM_URL") + '/v1/chat/completions',
+        json={
+            "text": body.last_msg_text,
+        }
+    )
 
     return GetMessageResponseModel(
-        new_msg_text=response, dialog_id=body.dialog_id
+        new_msg_text=response.json(), dialog_id=body.dialog_id
     )
 
 @app.post("/predict", response_model=Prediction)
@@ -44,13 +54,20 @@ def predict(msg: IncomingMessage) -> Prediction:
     Returns a `Prediction` object.
     """
 
-    is_bot_probability = predict_bot(msg.text)
+    is_bot_response = requests.post(
+        os.getenv("CLASSIFIER_URL") + '/predict',
+        json={
+            "text": msg.text,
+        }
+    ).json()
     prediction_id = uuid4()
+
+    bot_proba = is_bot_response["probability"]
 
     return Prediction(
         id=prediction_id,
         message_id=msg.id,
         dialog_id=msg.dialog_id,
         participant_index=msg.participant_index,
-        is_bot_probability=is_bot_probability
+        is_bot_probability=bot_proba
     )

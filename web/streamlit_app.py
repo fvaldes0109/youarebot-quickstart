@@ -7,7 +7,7 @@ from sklearn.metrics import log_loss
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from app.models import GetMessageRequestModel
+from models import GetMessageRequestModel
 
 def send_to_predict(text: str, participant_index: int) -> float:
     pred_resp = requests.post(
@@ -21,7 +21,7 @@ def send_to_predict(text: str, participant_index: int) -> float:
     ).json()
     return pred_resp["is_bot_probability"]
 
-default_echo_bot_url = "http://localhost:6872"
+default_echo_bot_url = "http://localhost:8000"
 st.set_page_config(initial_sidebar_state="collapsed")
 
 if "y_true" not in st.session_state:

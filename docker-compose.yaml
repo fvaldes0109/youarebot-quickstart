@@ -1,0 +1,71 @@
+
+services:
+  mlflow:
+    image: "ghcr.io/mlflow/mlflow:latest"
+    container_name: mlflow
+    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///data/mlflow.db --default-artifact-root /mlruns
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    volumes:
+      - /mlruns:/mlruns  # Host directory bound to container
+      - ./mlflow_data:/data
+    ports:
+      - "5000:5000"
+    networks:
+      - hs_net
+
+  classifier:
+    build:
+      context: ./app/classifier
+      dockerfile: Dockerfile
+    container_name: classifier
+    depends_on:
+      - mlflow
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MODEL_NAME=classifier
+    ports:
+      - "8001:8000"
+    volumes:
+      - /mlruns:/mlruns
+    networks:
+      - hs_net
+
+  llm:
+    build:
+      context: ./app/llm
+      dockerfile: Dockerfile
+    container_name: llm
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    ports:
+      - "11434:8000"
+    networks:
+      - hs_net
+
+  # ---------------------------
+  # Public Orchestrator Gateway
+  # ---------------------------
+  orchestrator:
+    build:
+      context: ./app/api
+      dockerfile: Dockerfile
+    container_name: orchestrator
+    depends_on:
+      - classifier
+      - llm
+    environment:
+      - CLASSIFIER_URL=http://classifier:8000
+      - LLM_URL=http://llm:8000
+    ports:
+      - "8000:8000"
+    networks:
+      - hs_net
+
+volumes:
+  mlruns:
+  mlflow_data:
+
+networks:
+  hs_net:
+    driver: bridge
